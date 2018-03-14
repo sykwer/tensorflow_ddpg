@@ -13,8 +13,8 @@ GAMMA = 0.99
 class DDPGAgent:
     def __init__(self, env):
         self.env = env
-        self.num_states = env.observation_space.shape[0]
-        self.num_actions = env.action_space.shape[0]
+        self.num_states = self.env.observation_space.shape[0]
+        self.num_actions = self.env.action_space.shape[0]
 
         self.replay_buffer = deque()
 
