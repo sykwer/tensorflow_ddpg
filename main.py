@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 
-from ddpg_agent import DDPGAgent
+from ddpg_agent import DDPGAgent, MINI_BATCH_SIZE
 from ou_noise import OUNoise
 
 # Select aigym envrironment name.
@@ -57,7 +57,7 @@ def main():
             agent.add_experience(state, action, observation, reward, done)
 
             # Train actor/critic network
-            if j > 50: agent.train()
+            if j > MINI_BATCH_SIZE: agent.train()
 
             reward_per_episode += reward
 
