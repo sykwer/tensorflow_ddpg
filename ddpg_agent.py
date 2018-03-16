@@ -36,7 +36,7 @@ class DDPGAgent:
         s_batch = np.array([item[0] for item in batch])
         a_batch = np.array([item[1] for item in batch])
         s_1_batch = np.array([item[2] for item in batch])
-        reward_batch = np.array([item[3] for item in batch])
+        reward_batch = np.array([[item[3]] for item in batch])
         done_batch = np.array([item[4] for item in batch])
 
         # Train learned critic network
