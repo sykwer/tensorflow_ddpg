@@ -90,7 +90,8 @@ class CriticNet:
                 self.q_teacher: target_q_batch})
 
     def compute_dQ_da(self, state_batch, action_batch):
-        return self.sess.run(self.dQ_da, feed_dict={self.state_input: state_batch, self.action_input: action_batch})
+        return self.sess.run(self.dQ_da, feed_dict={self.state_input: state_batch, self.action_input: action_batch})[0]
 
     def update_target_net(self):
         self.sess.run(self.target_net_update_ops)
+
