@@ -64,16 +64,16 @@ class CriticNet:
         state_input = tf.placeholder(tf.float32, {None, self.num_states})
         action_input = tf.placeholder(tf.float32, [None, self.num_actions])
 
+        # He initialization
         state_W1 = tf.Variable(tf.random_uniform([self.num_states, N_HIDDEN_1],\
-            -1/np.sqrt(self.num_states + self.num_actions), 1/np.sqrt(self.num_states + self.num_actions)))
+            -np.sqrt(2/(self.num_states + self.num_actions)), np.sqrt(2/(self.num_states + self.num_actions))))
         action_W1 = tf.Variable(tf.random_uniform([self.num_actions, N_HIDDEN_1],\
-            -1/np.sqrt(self.num_states + self.num_actions), 1/np.sqrt(self.num_states + self.num_actions)))
-        B1 = tf.Variable(tf.random_uniform([N_HIDDEN_1],\
-            -1/np.sqrt(self.num_states + self.num_actions), 1/np.sqrt(self.num_states + self.num_actions)))
-        W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -1/np.sqrt(N_HIDDEN_1), 1/np.sqrt(N_HIDDEN_1)))
-        B2 = tf.Variable(tf.random_uniform([N_HIDDEN_2], -1/np.sqrt(N_HIDDEN_1), 1/np.sqrt(N_HIDDEN_1)))
-        W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, 1], -1/np.sqrt(N_HIDDEN_2), 1/np.sqrt(N_HIDDEN_2)))
-        B3 = tf.Variable(tf.random_uniform([1], -1/np.sqrt(N_HIDDEN_2), 1/np.sqrt(N_HIDDEN_2)))
+            -np.sqrt(2/(self.num_states + self.num_actions)), np.sqrt(2/(self.num_states + self.num_actions))))
+        B1 = tf.Variable(tf.zeros([N_HIDDEN_1]))
+        W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -np.sqrt(2/N_HIDDEN_1), np.sqrt(2/N_HIDDEN_1)))
+        B2 = tf.Variable(tf.zeros([N_HIDDEN_2]))
+        W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, 1], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
+        B3 = tf.Variable(tf.zeros([1]))
 
         z1 = tf.nn.relu(tf.matmul(state_input, state_W1) + tf.matmul(action_input, action_W1) + B1)
         z2 = tf.nn.relu(tf.matmul(z1, W2) + B2)

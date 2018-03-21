@@ -59,15 +59,13 @@ class ActorNet:
     def __create_graph(self):
         state_input = tf.placeholder(tf.float32, {None, self.num_states})
 
-        W1 = tf.Variable(tf.random_uniform([self.num_states, N_HIDDEN_1],\
-            -1/np.sqrt(self.num_states), 1/np.sqrt(self.num_states)))
-        B1 = tf.Variable(tf.random_uniform([N_HIDDEN_1],\
-            -1/np.sqrt(self.num_states), 1/np.sqrt(self.num_states)))
-        W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -1/np.sqrt(N_HIDDEN_1), 1/np.sqrt(N_HIDDEN_1)))
-        B2 = tf.Variable(tf.random_uniform([N_HIDDEN_2], -1/np.sqrt(N_HIDDEN_1), 1/np.sqrt(N_HIDDEN_1)))
-        W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, self.num_actions],\
-             -1/np.sqrt(N_HIDDEN_2), 1/np.sqrt(N_HIDDEN_2)))
-        B3 = tf.Variable(tf.random_uniform([self.num_actions], -1/np.sqrt(N_HIDDEN_2), 1/np.sqrt(N_HIDDEN_2)))
+        # He initialization
+        W1 = tf.Variable(tf.random_uniform([self.num_states, N_HIDDEN_1], -np.sqrt(2/self.num_states), np.sqrt(2/self.num_states)))
+        B1 = tf.Variable(tf.zeros([N_HIDDEN_1]))
+        W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -np.sqrt(2/N_HIDDEN_1), np.sqrt(2/N_HIDDEN_1)))
+        B2 = tf.Variable(tf.zeros([N_HIDDEN_2]))
+        W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, self.num_actions], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
+        B3 = tf.Variable(tf.zeros([self.num_actions]))
 
         z1 = tf.nn.relu(tf.matmul(state_input, W1) + B1)
         z2 = tf.nn.relu(tf.matmul(z1, W2) + B2)
