@@ -6,7 +6,7 @@ from ou_noise import OUNoise
 
 # Select aigym envrironment name.
 # You have to select env whose state and action spaces are continuous.
-ENV_NAME = "Ant-v2"
+ENV_NAME = "InvertedPendulum-v2"
 
 # parameters
 episodes_num = 20000
@@ -38,7 +38,7 @@ def main():
     noise = OUNoise(num_actions)
 
     for i in range(episodes_num):
-        print("Start episodes no: %d" % i)
+        print("--------Episode %d--------" % i)
         reward_per_episode = 0
         observation = env.reset()
 
@@ -57,16 +57,15 @@ def main():
             agent.add_experience(state, action, observation, reward, done)
 
             # Train actor/critic network
-            if j > MINI_BATCH_SIZE: agent.train()
+            if len(agent.replay_buffer) > MINI_BATCH_SIZE: agent.train()
 
             reward_per_episode += reward
 
             if (done or j == steps_limit -1):
-                print("--------Episode %d--------" % i)
                 print("Steps count: %d" % j)
                 print("Total reward: %d" % reward_per_episode)
 
-                noise.reset()
+                #noise.reset()
 
                 with open("reward_log.csv", "a") as f:
                     f.write("%d,%f\n" % (i, reward_per_episode))

@@ -7,19 +7,20 @@ from actor_net import ActorNet
 
 # parameters
 REPLAY_BUFFER_SIZE = 10000
-MINI_BATCH_SIZE = 100
+MINI_BATCH_SIZE = 128
 GAMMA = 0.99
 
 class DDPGAgent:
     def __init__(self, env):
-        self.env = env
-        self.num_states = self.env.observation_space.shape[0]
-        self.num_actions = self.env.action_space.shape[0]
+        self.num_states = env.observation_space.shape[0]
+        self.num_actions = env.action_space.shape[0]
+        self.action_max = env.action_space.high
+        self.action_min = env.action_space.low
 
         self.replay_buffer = deque()
 
-        self.critic_net = CriticNet(self.num_states, self.num_actions)
-        self.actor_net = ActorNet(self.num_states, self.num_actions)
+        self.critic_net = CriticNet(self.num_states, self.num_actions, self.action_max, self.action_min)
+        self.actor_net = ActorNet(self.num_states, self.num_actions, self.action_max)
 
     def feed_forward_actor(self, state):
         return self.actor_net.forward_learned_net(state)
@@ -40,8 +41,16 @@ class DDPGAgent:
         done_batch = np.array([item[4] for item in batch])
 
         # Train learned critic network
-        target_q_batch = reward_batch + GAMMA * \
-            self.critic_net.forward_target_net(s_1_batch, self.actor_net.forward_target_net(s_1_batch))
+        #target_q_batch = reward_batch + GAMMA * \
+            #self.critic_net.forward_target_net(s_1_batch, self.actor_net.forward_target_net(s_1_batch))
+        q_t_1 = self.critic_net.forward_target_net(s_1_batch, self.actor_net.forward_target_net(s_1_batch))
+        target_q_batch = []
+        for i in range(MINI_BATCH_SIZE):
+            if done_batch[i]:
+                target_q_batch.append(reward_batch[i][0])
+            else:
+                target_q_batch.append(reward_batch[i][0] + GAMMA * q_t_1[i][0])
+        target_q_batch = np.reshape(target_q_batch, [MINI_BATCH_SIZE, 1])
         self.critic_net.train(s_batch, a_batch, target_q_batch)
 
         # Train learned actor network (Deterministic Policy Gradient theorem is applied here)

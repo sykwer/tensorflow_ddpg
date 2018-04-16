@@ -2,17 +2,20 @@ import numpy as np
 import tensorflow as tf
 
 # paramters
-N_HIDDEN_1 = 200
-N_HIDDEN_2 = 100
-MINI_BATCH_SIZE = 100
-LEARNING_RATE = 0.001
-TAU = 0.01
+N_HIDDEN_1 = 400
+N_HIDDEN_2 = 300
+MINI_BATCH_SIZE = 64
+LEARNING_RATE = 1e-3
+DECAY_RATE = 1e-2
+TAU = 0.001
 EPSILON = 1e-6
 
 class CriticNet:
-    def __init__(self, num_states, num_actions):
+    def __init__(self, num_states, num_actions, action_max, action_min):
         self.num_actions = num_actions
         self.num_states = num_states
+        self.action_max = action_max
+        self.action_min = action_min
 
         self.graph = tf.Graph()
 
@@ -20,33 +23,36 @@ class CriticNet:
             self.sess = tf.Session()
 
             # Learned network
-            self.state_W1, self.action_W1, self.scale1, self.beta1, self.W2, self.scale2, self.beta2, self.W3,\
-                self.B3, self.critic_model, self.state_input, self.action_input = self.__create_graph()
+            self.W1, self.B1, self.state_W2, self.action_W2, self.B2, self.W3, self.B3, self.critic_model,\
+                    self.state_input, self.action_input = self.__create_graph()
 
             # Target network
-            self.t_state_W1, self.t_action_W1, self.t_scale1, self.t_beta1, self.t_W2, self.t_scale2, self.t_beta2, self.t_W3,\
-                self.t_B3, self.t_critic_model, self.t_state_input, self.t_action_input = self.__create_graph()
+            self.t_W1, self.t_B1, self.t_state_W2, self.t_action_W2, self.t_B2, self.t_W3, self.t_B3, self.t_critic_model,\
+                    self.t_state_input, self.t_action_input = self.__create_graph()
 
             # Supervised leaaning
             self.q_teacher = tf.placeholder(tf.float32, [None, 1])
-            l2_regularizer = tf.nn.l2_loss(self.W2) + tf.nn.l2_loss(self.W3)
+            l2_regularizer = DECAY_RATE * (tf.nn.l2_loss(self.W1) + tf.nn.l2_loss(self.state_W2) + tf.nn.l2_loss(self.action_W2) + tf.nn.l2_loss(self.W3))
             loss = tf.pow(self.critic_model - self.q_teacher, 2) / MINI_BATCH_SIZE + l2_regularizer
             self.optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(loss)
 
             # Q gradient computation
-            self.dQ_da = tf.gradients(self.critic_model, self.action_input)
+            pmax = tf.constant(self.action_max, dtype=tf.float32)
+            pmin = tf.constant(self.action_min, dtype=tf.float32)
+            uninverted_dQ_da = tf.gradients(self.critic_model, self.action_input)
+            self.dQ_da = tf.where(tf.greater(uninverted_dQ_da, tf.zeros([self.num_actions])),
+                    tf.multiply(uninverted_dQ_da, tf.div(pmax - self.action_input, pmax - pmin)),
+                    tf.multiply(uninverted_dQ_da, tf.div(self.action_input - pmin, pmax - pmin)))
 
             # Update target network making closer to learned network
             self.target_net_update_ops = [
-                self.t_state_W1.assign(TAU * self.state_W1 + (1-TAU) * self.t_state_W1),
-                self.t_action_W1.assign(TAU * self.action_W1 + (1-TAU) * self.t_action_W1),
-                self.t_W2.assign(TAU * self.W2 + (1-TAU) * self.t_W2),
+                self.t_W1.assign(TAU * self.W1 + (1-TAU) * self.t_W1),
+                self.t_state_W2.assign(TAU * self.state_W2 + (1-TAU) * self.t_state_W2),
+                self.t_action_W2.assign(TAU * self.action_W2 + (1-TAU) * self.t_action_W2),
                 self.t_W3.assign(TAU * self.W3 + (1-TAU) * self.t_W3),
+                self.t_B1.assign(TAU * self.B1 + (1-TAU) * self.t_B1),
+                self.t_B2.assign(TAU * self.B2 + (1-TAU) * self.t_B2),
                 self.t_B3.assign(TAU * self.B3 + (1-TAU) * self.t_B3),
-                self.t_scale1.assign(TAU * self.scale1 * (1-TAU) * self.t_scale1),
-                self.t_scale2.assign(TAU * self.scale2 * (1-TAU) * self.t_scale2),
-                self.t_beta1.assign(TAU * self.beta1 * (1-TAU) * self.t_beta1),
-                self.t_beta2.assign(TAU * self.beta2 * (1-TAU) * self.t_beta2),
             ]
 
             # Global variables have to be initialized
@@ -54,48 +60,41 @@ class CriticNet:
 
             # Confirm learned/target net have the same values
             self.sess.run([
-                self.t_state_W1.assign(self.state_W1),
-                self.t_action_W1.assign(self.action_W1),
-                self.t_W2.assign(self.W2),
+                self.t_W1.assign(self.W1),
+                self.t_state_W2.assign(self.state_W2),
+                self.t_action_W2.assign(self.action_W2),
                 self.t_W3.assign(self.W3),
+                self.t_B1.assign(self.B1),
+                self.t_B2.assign(self.B2),
                 self.t_B3.assign(self.B3),
-                self.t_scale1.assign(self.scale1),
-                self.t_scale2.assign(self.scale2),
-                self.t_beta1.assign(self.beta1),
-                self.t_beta2.assign(self.beta2),
             ])
 
     def __create_graph(self):
-        state_input = tf.placeholder(tf.float32, {None, self.num_states})
+        state_input = tf.placeholder(tf.float32, [None, self.num_states])
         action_input = tf.placeholder(tf.float32, [None, self.num_actions])
 
+        W1 = tf.Variable(tf.truncated_normal([self.num_states, N_HIDDEN_1], stddev=0.01))
+        B1 = tf.Variable(tf.constant(0.03, shape=[N_HIDDEN_1]))
+        state_W2 = tf.Variable(tf.truncated_normal([N_HIDDEN_1, N_HIDDEN_2], stddev=0.01))
+        action_W2 = tf.Variable(tf.truncated_normal([self.num_actions, N_HIDDEN_2], stddev=0.01))
+        B2 = tf.Variable(tf.constant(0.03, shape=[N_HIDDEN_2]))
+        W3 = tf.Variable(tf.truncated_normal([N_HIDDEN_2, 1], stddev=0.01))
+        B3 = tf.Variable(tf.constant(500., shape=[1])) # important initial value
+
         # He initialization
-        state_W1 = tf.Variable(tf.random_uniform([self.num_states, N_HIDDEN_1],\
-            -np.sqrt(2/(self.num_states + self.num_actions)), np.sqrt(2/(self.num_states + self.num_actions))))
-        action_W1 = tf.Variable(tf.random_uniform([self.num_actions, N_HIDDEN_1],\
-            -np.sqrt(2/(self.num_states + self.num_actions)), np.sqrt(2/(self.num_states + self.num_actions))))
-        W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -np.sqrt(2/N_HIDDEN_1), np.sqrt(2/N_HIDDEN_1)))
-        W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, 1], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
-        B3 = tf.Variable(tf.zeros([1]))
+        #W1 = tf.Variable(tf.random_uniform([self.num_states, N_HIDDEN_1], -np.sqrt(2/self.num_states), np.sqrt(2/self.num_states)))
+        #B1 = tf.Variable(tf.random_uniform([N_HIDDEN_1], -np.sqrt(2/self.num_states), np.sqrt(2/self.num_states)))
+        #state_W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -np.sqrt(2/self.num_actions + N_HIDDEN_1), np.sqrt(2/self.num_actions + N_HIDDEN_1)))
+        #action_W2 = tf.Variable(tf.random_uniform([self.num_actions, N_HIDDEN_2], -np.sqrt(2/self.num_actions + N_HIDDEN_1), np.sqrt(2/self.num_actions + N_HIDDEN_1)))
+        #B2 = tf.Variable(tf.random_uniform([N_HIDDEN_2], -np.sqrt(2/self.num_actions + N_HIDDEN_1), np.sqrt(2/self.num_actions + N_HIDDEN_1)))
+        #W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, 1], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
+        #B3 = tf.Variable(tf.random_uniform([1], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
 
-        # Batch normalization
-        u1 = tf.matmul(state_input, state_W1) + tf.matmul(action_input, action_W1)
-        batch_mean1, batch_var1 = tf.nn.moments(u1, [0])
-        scale1 = tf.Variable(tf.ones([N_HIDDEN_1]))
-        beta1 = tf.Variable(tf.zeros([N_HIDDEN_1]))
-        bn1 = tf.nn.batch_normalization(u1, batch_mean1, batch_var1, beta1, scale1, EPSILON)
-        z1 = tf.nn.relu(bn1)
-
-        u2 = tf.matmul(z1, W2)
-        batch_mean2, batch_var2 = tf.nn.moments(u2, [0])
-        scale2 = tf.Variable(tf.ones([N_HIDDEN_2]))
-        beta2 = tf.Variable(tf.zeros([N_HIDDEN_2]))
-        bn2 = tf.nn.batch_normalization(u2, batch_mean2, batch_var2, beta2, scale2, EPSILON)
-        z2 = tf.nn.relu(bn2)
-
+        z1 = tf.nn.relu(tf.matmul(state_input, W1) + B1)
+        z2 = tf.nn.relu(tf.matmul(z1, state_W2) + tf.matmul(action_input, action_W2) + B2)
         critic_model = tf.matmul(z2, W3) + B3
 
-        return state_W1, action_W1, scale1, beta1, W2, scale2, beta2, W3, B3, critic_model, state_input, action_input
+        return W1, B1, state_W2, action_W2, B2, W3, B3, critic_model, state_input, action_input
 
     def forward_target_net(self, state_batch, action_batch):
         return self.sess.run(self.t_critic_model,\
