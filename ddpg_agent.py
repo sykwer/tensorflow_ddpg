@@ -41,8 +41,6 @@ class DDPGAgent:
         done_batch = np.array([item[4] for item in batch])
 
         # Train learned critic network
-        #target_q_batch = reward_batch + GAMMA * \
-            #self.critic_net.forward_target_net(s_1_batch, self.actor_net.forward_target_net(s_1_batch))
         q_t_1 = self.critic_net.forward_target_net(s_1_batch, self.actor_net.forward_target_net(s_1_batch))
         target_q_batch = []
         for i in range(MINI_BATCH_SIZE):

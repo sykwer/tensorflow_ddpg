@@ -81,15 +81,6 @@ class CriticNet:
         W3 = tf.Variable(tf.truncated_normal([N_HIDDEN_2, 1], stddev=0.01))
         B3 = tf.Variable(tf.constant(500., shape=[1])) # important initial value
 
-        # He initialization
-        #W1 = tf.Variable(tf.random_uniform([self.num_states, N_HIDDEN_1], -np.sqrt(2/self.num_states), np.sqrt(2/self.num_states)))
-        #B1 = tf.Variable(tf.random_uniform([N_HIDDEN_1], -np.sqrt(2/self.num_states), np.sqrt(2/self.num_states)))
-        #state_W2 = tf.Variable(tf.random_uniform([N_HIDDEN_1, N_HIDDEN_2], -np.sqrt(2/self.num_actions + N_HIDDEN_1), np.sqrt(2/self.num_actions + N_HIDDEN_1)))
-        #action_W2 = tf.Variable(tf.random_uniform([self.num_actions, N_HIDDEN_2], -np.sqrt(2/self.num_actions + N_HIDDEN_1), np.sqrt(2/self.num_actions + N_HIDDEN_1)))
-        #B2 = tf.Variable(tf.random_uniform([N_HIDDEN_2], -np.sqrt(2/self.num_actions + N_HIDDEN_1), np.sqrt(2/self.num_actions + N_HIDDEN_1)))
-        #W3 = tf.Variable(tf.random_uniform([N_HIDDEN_2, 1], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
-        #B3 = tf.Variable(tf.random_uniform([1], -np.sqrt(2/N_HIDDEN_2), np.sqrt(2/N_HIDDEN_2)))
-
         z1 = tf.nn.relu(tf.matmul(state_input, W1) + B1)
         z2 = tf.nn.relu(tf.matmul(z1, state_W2) + tf.matmul(action_input, action_W2) + B2)
         critic_model = tf.matmul(z2, W3) + B3
